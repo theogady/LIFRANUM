@@ -39,8 +39,8 @@ if __name__ == "__main__" :
     data_posts_lim = limit_X(data_posts,200, col = "author.displayName")
     
     # backup info file creation
-    infos = pd.DataFrame(columns=["Description"])
-    infos.to_pickle("backup/models/infos")
+    # infos = pd.DataFrame(columns=["Description"])
+    # infos.to_pickle("backup/models/infos")
     infos = pd.read_pickle("backup/models/infos")
 
     v = 1
