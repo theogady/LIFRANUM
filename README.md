@@ -11,7 +11,7 @@ Mallet 2.0 binary file, which path should be updated in the code/other/config.py
 
 ## Description
 ### Usage
-For an exemple of blogs topics extraction, clustering and analysis, go through
+For an exemple of blogs clustering over topics, stylistic and social features and their analysis, go through
 ```bash
 code/exemple_use.py
 ```
