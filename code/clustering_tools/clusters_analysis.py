@@ -7,7 +7,6 @@ Created on Mon Oct 18 13:22:55 2021
 """
 import pandas as pd
 
-# from nltk.tokenize import sent_tokenize
 
 import numpy as np
 
@@ -15,7 +14,6 @@ import numpy as np
 import gensim
 import gensim.corpora as corpora
 
-from itertools import compress
 
 import tqdm
 
@@ -46,6 +44,8 @@ def get_most_sallient_words (v, Lambda = 0.5, save = True, nb_words = 20, below_
 
     print("Start evluation most sallient words")
     data = pd.read_pickle('backup/models/test_numb_' + str(v)+"/"+str(v) + ".classified_posts")
+    meaningfull_data = pd.read_pickle('backup/data/meaningfull_data')
+    data.content = meaningfull_data.loc[data.index].content
     texts = data.content.values.tolist()
     dico_tot = corpora.Dictionary(texts)
     dico_tot.filter_extremes(no_below = below_lim)
@@ -82,6 +82,8 @@ def get_most_sallient_words (v, Lambda = 0.5, save = True, nb_words = 20, below_
 def get_ngram (v, Lambda =0.5, save = False, nb_words = 20):
     print("Initialization")
     data = pd.read_pickle('backup/models/test_numb_' + str(v)+"/"+str(v) + ".classified_posts")
+    meaningfull_data = pd.read_pickle('backup/data/meaningfull_data')
+    data.content = meaningfull_data.loc[data.index].content
     texts = data.content.values.tolist()
     bigram = gensim.models.Phrases(texts, min_count=5, threshold=10.0)
     trigram = gensim.models.Phrases(bigram[texts], threshold=10.0)
@@ -137,6 +139,8 @@ def get_ngram (v, Lambda =0.5, save = False, nb_words = 20):
 def get_ngram2 (v, save = True, nb_words = 20) :
     print("Calculating the n-grams")
     data = pd.read_pickle('backup/models/test_numb_' + str(v)+"/"+str(v) + ".classified_posts")
+    meaningfull_data = pd.read_pickle('backup/data/meaningfull_data')
+    data.content = meaningfull_data.loc[data.index].content
     texts = data.content.values.tolist()
     bigram = gensim.models.Phrases(texts, min_count=5, threshold=10.0)
     trigram = gensim.models.Phrases(bigram[texts], threshold=10.0)
@@ -304,180 +308,6 @@ def get_extrem_style(v, N_values = 20):
         dict2 = dict(value_serie)
         values.append({**dict1, **dict2})
     return values
-
-
-
-# def compare_classification(data1, data2):
-#     clusters = set(data1.Class.values)
-#     dict_12 = {}
-#     for i, row1 in data1.iterrows():
-#         C1 = row1.Class
-#         C2 = data2.loc[i]
-#         if C1 not in dict_12.keys() :
-#             return 0
-
-# def dist(dic12, l1, l2) :
-#     l1bis = [dic12[x] for x in l1]
-#     s = 0
-#     for i in range(len(l1)) :
-#         if l1bis[i] != l2[i] :
-#             s+=1
-#     return s
-
-# import random as r
-# import itertools
-# import numpy as np
-# from collections import OrderedDict
-# import time
-
-# # on part du principe que l1 et l2 ont la meme taille, et leurs set aussi
-# def hill_climbing(l1, l2, lim  = 50 ) :
-#     permu = list(set(l1))
-#     r.shuffle(permu)
-#     best_dic12 = OrderedDict(zip(permu, set(l2)))
-#     best_dist = dist(best_dic12, l1,l2)
-#     it = 0
-#     while it < lim :
-#         it +=1
-#         print(it)
-#         print(best_dist)
-#         combi = list(itertools.combinations(permu, 2))
-#         list_dist = []
-#         for c in combi :
-#             dic12 = best_dic12.copy()
-#             dic12[c[0]], dic12[c[1]] = dic12.pop(c[1]), dic12.pop(c[0])
-#             list_dist.append(dist(dic12, l1, l2))
-#         d = min(list_dist)
-#         if d >= best_dist or d == 0:
-#             break
-#         best_dist = d
-#         c = combi[np.argmin(list_dist)]
-#         best_dic12[c[0]], best_dic12[c[1]] = best_dic12.pop(c[1]), best_dic12.pop(c[0])
-#     return best_dic12, best_dist
-
-# def gene(l1,l2, lim = 50, population = 10) :
-#     permu = list(set(l1))
-#     l_children = []
-#     #for i in range(population*(population-1)*2 + population) :
-#     for i in range(population*2) :
-#         r.shuffle(permu)
-#         l_children.append(permu.copy())
-#     it = 0
-#     while it < lim :
-#         it+= 1
-#         l_distances = []
-#         for child in l_children :
-#             dic12 = dict(zip(child,set(l2)))
-#             l_distances.append(dist(dic12,l1,l2))
-#         sort = sorted(zip(l_children, l_distances), key = lambda y : y[1])
-#         adults = [x[0] for x in sort[:population]]
-#         best_dist = sort[0][1]
-#         print(it)
-#         print(best_dist)
-#         if best_dist == 0 :
-#             break
-#         l_children = children2(adults)
-#     best_dic12 = OrderedDict(zip(adults[0], set(l2)))
-#     return best_dic12, best_dist
-
-# def gene2(l1,l2, popu_ini,  n_adults, lim = 50) :
-#     l_children = popu_ini
-#     it = 0
-#     while it < lim :
-#         it+= 1
-#         l_distances = []
-#         for child in l_children :
-#             dic12 = dict(zip(child,set(l2)))
-#             l_distances.append(dist(dic12,l1,l2))
-#         sort = sorted(zip(l_children, l_distances), key = lambda y : y[1])
-#         adults = [x[0] for x in sort[:n_adults]]
-#         best_dist = sort[0][1]
-#         print(it)
-#         print(best_dist)
-#         if best_dist == 0 :
-#             break
-#         l_children = children2(adults)
-#     return adults[0], best_dist
-
-# def RandR (l1,l2,lim = 50, n_adults = 10) :
-#     center = list(set(l1))
-#     it = 0
-#     n = len(center)
-#     best_dist = dist(dict(zip(center,set(l2))),l1,l2)
-#     while it < lim and n > 0:
-#         it+= 1
-#         popu_ini = []
-#         for i in range(n_adults*2):
-#             popu_ini.append(n_transpo(center, n))
-#         new_center, new_dist = gene2(l1,l2, popu_ini, n_adults, lim = 10)
-#         if new_dist < best_dist :
-#             n = n/2
-#         else :
-#             n = n*2
-#         center, best_dist = new_center, new_dist
-#     best_dic12 = OrderedDict(zip(center, set(l2)))
-#     return best_dic12, best_dist
-
-# def n_transpo(l, n):
-#     for i in range(n) :
-#         j = r.randint(0, len(l)-1)
-#         k = len(l)%(j+1)
-#         l[j], l[k] = l[k], l[j]
-#     return l
-
-# def children (adults):
-#     l_children = []
-#     for couple in itertools.combinations(adults, 2) :
-#         l_children += fusion(couple[0], couple[1])
-#         l_children += fusion(couple[1], couple[0])
-#     for adult in adults :
-#         l_children.append(modify(adult, n= int(len(adult)/2)))
-#     return l_children
-
-# def children2 (adults):
-#     l_children = []
-#     for i in range(int(len(adults)/2)) :
-#         l_children += fusion(adults[2*i], adults[2*i + 1])
-#         l_children += fusion(adults[2*i + 1], adults[2*i])
-#     for adult in adults :
-#         l_children.append(modify(adult, n= int(len(adult)/2)))
-#     return l_children
-
-
-# def modify(l1, n) :
-#     l = l1.copy()
-#     indices_to_change = r.sample(range(len(l1)),n)
-#     new_indices = indices_to_change.copy()
-#     r.shuffle(new_indices)
-#     for i in range(len(indices_to_change)) :
-#         l[indices_to_change[i]] = l1[new_indices[i]]
-#     return l
-
-
-# def fusion(l1, l2) :
-#     g = l1[:int(len(l1)/2)]
-#     while len(g) < len(l1) :
-#         i = l2[len(g)]
-#         if i not in g :
-#             g.append(i)
-#         else :
-#             g.append(None)
-#     missing = set(l1) - set(g)
-#     while len(missing) > 0 :
-#         g[g.index(None)] = missing.pop()
-        
-#     d = l1[int(len(l1)/2):]
-#     while len(d) < len(l1) :
-#         i = l2[-len(d)-1]
-#         if i not in d :
-#             d.insert(0,i)
-#         else :
-#             d.insert(0,None)
-#     missing = set(l1) - set(d)
-#     while len(missing) > 0 :
-#         d[d.index(None)] = missing.pop()
-#     return [g,d]
-
 
 
 

@@ -11,7 +11,6 @@ import gensim.corpora as corpora
 from gensim.models.coherencemodel import CoherenceModel
 
 
-import pyLDAvis
 import pyLDAvis.gensim_models
 
 import matplotlib.pyplot as plt
@@ -89,6 +88,7 @@ def choose_nb_topics (dico, corpus, texts, start, limit , step=1, model = "Malle
 ### LDA model creation, mallet gives better results ###
 def create_lda(corpus,id2word, nb_topics, texts, v = -1, model = "Mallet", coherence = False) :
     if model == "Mallet" :
+        print(path_to_mallet_binary)
         lda = ldamallet.LdaMallet(mallet_path=path_to_mallet_binary, corpus=corpus, id2word=id2word, num_topics=nb_topics, random_seed =1, iterations = 500, alpha = 0.5)
         lda_model = ldamallet.malletmodel2ldamodel(lda)
     else :
@@ -131,7 +131,6 @@ def load_lda(v) :
 
 
 import numpy as np
-import networkx as nx
 from pyvis.network import Network
 
 def create_topic_topic_mat(lda_model):

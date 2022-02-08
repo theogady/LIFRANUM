@@ -10,9 +10,6 @@ Created on Mon Oct 18 13:36:54 2021
 import numpy as np
 
 from sklearn.cluster import KMeans
-from sklearn.manifold import MDS
-from sklearn.decomposition import PCA
-from sklearn.decomposition import TruncatedSVD
 from sklearn.manifold import TSNE
 
 import pandas as pd
@@ -93,11 +90,12 @@ def topic_vector_clustering(data, ldamodel, n_clusters, v = -1):
     copy["proba"] = perct
     if v > -1 :
         copy.to_pickle('backup/models/test_numb_' + str(v)+"/"+str(v)+".classified_posts")
-        pd.DataFrame(kmeans.cluster_centers_).to_pickle('backup/topic_models/test_numb_' + str(v)+"/"+str(v)+".centroids")
+        pd.DataFrame(kmeans.cluster_centers_).to_pickle('backup/models/test_numb_' + str(v)+"/"+str(v)+".centroids")
         pd.DataFrame(X).to_pickle('backup/models/test_numb_' + str(v)+"/"+str(v)+".coord")
     return(copy, kmeans.cluster_centers_, X)
 
-def style_classifier(data, X, n_clusters):
+### Clustering the coordinates of the X matrix, adding the "cluster" column to data
+def kmeans_clustering(data, X, n_clusters, v = -1):
     copy = data.copy()
     kmeans = KMeans(n_clusters=n_clusters, random_state=1, n_init = 100)
     classes = []
@@ -108,14 +106,25 @@ def style_classifier(data, X, n_clusters):
         perc = row[cluster]
         classes.append(cluster)
         perct.append(perc)
-    copy["Class"] = classes
-    copy["Proba"] = perct
+    copy["cluster"] = classes
+    copy["proba"] = perct
+    if v > -1 :
+        copy.to_pickle('backup/models/test_numb_' + str(v)+"/"+str(v)+".classified_posts")
+        pd.DataFrame(kmeans.cluster_centers_).to_pickle('backup/models/test_numb_' + str(v)+"/"+str(v)+".centroids")
+        pd.DataFrame(X).to_pickle('backup/models/test_numb_' + str(v)+"/"+str(v)+".coord")
     return(copy, kmeans.cluster_centers_, X)
 
-def visu_clusters(data,X, centers, L_labels, n_sample = 3000, focus = []) :
-    classes = list(data.Class.values)
+### Allows visualisation of the data, of coordinates X, in 2D ###
+### Colorisation can be made over clusters or metadata to focus on ###
+### Clusters labels can be add at the centers position ###
+def visu_clusters(data, X, centers = [], L_labels = [], n_sample = -1, focus = []) :
+    classes = list(data.cluster.values)
     n_clusters = len(set(classes))
+    if len(L_labels) != n_clusters :
+        L_labels = range(n_clusters)
     embedding = TSNE(n_components=2, random_state = 0)
+    if n_sample < 0 :
+        n_sample = len(X)
     random.seed(1)
     X_sample = random.sample(X, n_sample)
     random.seed(1)
@@ -137,16 +146,15 @@ def visu_clusters(data,X, centers, L_labels, n_sample = 3000, focus = []) :
             ix = np.where(classes_sample == g)
             ax.scatter(X_2D[ix,0], X_2D[ix,1], c= colors[g])
     else :
-        #cmap = plt.get_cmap('copper')
         colors = [cmap(i) for i in np.linspace(0.1, 1, len(focus))]
         for f in range(len(focus)):
             ix = [ idx for idx, x in enumerate(focus_sample[f]) if x == focus[f][1]]
             ax.scatter(X_2D[ix,0], X_2D[ix,1], c= colors[f], label = str(focus[f]), marker = "d")
             ax.legend()
-    for g in np.unique(classes_sample):
-        #ax.annotate(g, (centroids_2D[g,0],centroids_2D[g,1]))
-        ax.annotate(L_labels[g], (centroids_2D[g,0],centroids_2D[g,1]), fontsize=10, fontweight = 'bold')
-        ax.scatter(centroids_2D[g,0],centroids_2D[g,1],marker = "x", c ="black")
+    if len(centers) == n_clusters :
+        for g in np.unique(classes_sample):
+            ax.annotate(L_labels[g], (centroids_2D[g,0],centroids_2D[g,1]), fontsize=10, fontweight = 'bold')
+            ax.scatter(centroids_2D[g,0],centroids_2D[g,1],marker = "x", c ="black")
     plt.show()
     
     

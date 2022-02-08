@@ -16,4 +16,4 @@ nlp = spacy.load('fr_core_news_sm')
 
 french_stopwords = nlp.Defaults.stop_words
 
-path_to_mallet_binary = "topics/Mallet/bin/mallet"
+path_to_mallet_binary = "topics_approach/Mallet/bin/mallet"

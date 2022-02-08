@@ -34,6 +34,8 @@ import requests
 import time
 import numpy as np
 
+from os import mkdir
+
 ###
 from other.config import french_stopwords, nlp
 
@@ -178,6 +180,22 @@ def freq(wordDict, corpus):
             wordDict2[word] = count/total_count
     return (wordDict2)
 
+def new_test(v, msg):
+    try:
+       mkdir('backup/models/test_numb_' + str(v))
+       print("File created")
+       infos = pd.read_pickle("backup/models/infos")
+       infos.loc[v] = msg
+       infos.to_pickle("backup/models/infos")
+    except:
+        print("File already exists")
+
+def change_test(v, msg):
+    infos = pd.read_pickle("backup/models/infos")
+    save = infos.loc[v]
+    infos.loc[v] = msg
+    infos.to_pickle("backup/models/infos")
+    return save
 ######################################## usefull tools ########################################
 
 

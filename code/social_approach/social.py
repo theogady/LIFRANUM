@@ -13,20 +13,23 @@ import tqdm
 
 import pandas as pd
 
+import os
 
+from numpy import random
+from time import sleep
+import socket
 ######################################## Analyse réseaux social ########################################
-
-def get_followers(url):
-#plutot que de changer les erreurs d'encoding à la main, ne pas ouvrir avec le bon encodeur directement ?
+### Allows list of subscribers scrapping in a Blogger blog ###
+def get_followers(url, page_lim = 10):
     try :
         r = requests.get(url)
     except :
-        print("Impossible de se connecter à : "+ url)
+        print("Unable to connect to : "+ url)
         return False
     soup = BeautifulSoup(r.text, 'html.parser')
     followers = soup.find("div", id='Followers1')
     if followers is None :
-        print("Pas de followers disponibles : "+ url)
+        print("No followers available at : "+ url)
         return False
     followers = re.search('followersIframeOpen\(".*', str(followers))
     followers = re.search('".*?"', followers.group(0)).group(0)[1:-1]
@@ -53,70 +56,81 @@ def get_followers(url):
         name = display.get("alt")
         image = display.get("src")
 
-        list_blogs = get_blogs(link, 0)
+        list_blogs = get_blogs(link, 0, page_lim)
         
-        df = df.append({"name": name, "url":link,"list_blogs":list_blogs,"image":image}, ignore_index=True)
+        id_follower = re.search("(?<=followerID\=).*(?=&)", link).group(0)
+        df = df.append({"name": name, "id_follower" : id_follower, "url":link,"list_blogs":list_blogs,"image":image}, ignore_index=True)
         
     return(df)
 
-def get_blogs(url, i):
-    if i == 10 :
+### Recursive function for gathering all the blogs of the subscription pages ###
+def get_blogs(url, i, page_lim = 10):
+    if i == page_lim :
         return []
-    print("Page numero " + str(i))
+    print("Page number " + str(i))
     r = requests.get(url)
     soup = BeautifulSoup(r.text, 'html.parser')
     content = soup.find("div", class_ ="content-container")
-    lim = 0
-    while content is None and lim < 10 :
-        print("-----je reessaie-----")
-        lim += 1
+    try_nb = 0
+    while content is None and try_nb < 10 :
+        print("-----I try again-----")
+        try_nb += 1
         r = requests.get(url)
         soup = BeautifulSoup(r.text, 'html.parser')
         content = soup.find("div", class_ ="content-container")
-    if lim == 10 :
-        print("-----impossible de lire la page-----")
+    if try_nb == 10 :
+        print("-----Unable to read the page-----")
         return []
     next_page = content.find( class_ = "link-active", id = "next")
     list_blogs = content.find_all( "a", class_ = False)
     list_blogs = [x.get("href") for x in list_blogs]
     if (not next_page is None) :
         new_url = "https://www.blogger.com" + next_page.get("href")[1:]
-        list_blogs = list_blogs + get_blogs(new_url, i + 1)
+        list_blogs = list_blogs + get_blogs(new_url, i + 1, page_lim)
     return list_blogs
 
-
-def create_followers_data(list_urls, save):
-    # 40 blogs avec abonnés dispo
-    a = list_urls
+### Creation of dataframe of followers from list of blogs' url ###
+### "blog" == where they have been found, "name" == their user ID, "url" == follower description url ###
+### "list_blogs" == list of the blogs subscribed, "image" = link to profil picture
+def create_followers_data(data, page_lim = 10):
+    a = [x for x in set(data["blog.url"]) if x == x]
     l = []
     for x in a :
         print("blog nb " + str(len(l)) + " / " + str(len(a)))
-        l.append(get_followers(x))
+        l.append(get_followers(x, page_lim))
     
-    df = pd.DataFrame(columns = ["blog", "name", "url","list_blogs","image"])
+    df1 = pd.DataFrame(columns = ["blog", "name", "id_follower", "url", "list_blogs","image"])
     for i in range(len(l)):
         if isinstance(l[i], (bool)) :
             pass
         else :
             d = l[i]
             d["blog"] = a[i]
-            df = df.append(l[i])
-    notify("Fin programme")
-    df.to_pickle("Svg_data/" + save)
-    return df
+            df1 = df1.append(l[i])
+    
+    df2 = pd.DataFrame(columns = ["blogs_found", "name", "url","list_blogs","image"])
+    for x in set(df1.id_follower.values) :
+        blogs_found = df1.loc[df1.id_follower == x].blog.tolist()
+        d = dict(df1.loc[df1.id_follower == x].iloc[0])
+        d.pop("blog")
+        d.pop("id_follower")
+        d["blogs_found"] = blogs_found
+        df2 = df2.append(d,ignore_index=True)
+    notify("End of create_followers_data program")
+    df2.to_pickle("backup/data/followers")
+    return df2
 
-import os 
 
+### For sending notifications, works on macOS ###
 def notify(text, title = "alert", sound = "default"):
     os.system("""osascript -e 'display notification "{}" with title "{}" sound name "{}" '""".format(text, title, sound))
 
 
-from numpy import random
-from time import sleep
-import socket
-def create_followers_data2(data):
+### Info scrapping of authors in data ###
+### As these are sensible info, IP adress can be detected and blocked ###
+def create_author_data(data):
     a = [x for x in set(data["author.url"]) if x == x and "blogger.com/profile/" in x]
-    df = pd.DataFrame(columns = ["user_url", "My_blogs", "Blogs_followed","Info"])
+    df = pd.DataFrame(columns = ["user_url", "my_blogs", "blogs_followed","personal_info"])
     for x in tqdm.tqdm(a) :
         l1 = []
         l2 = []
@@ -126,9 +140,9 @@ def create_followers_data2(data):
         r = requests.get(x)
         soup = BeautifulSoup(r.text, 'html.parser')
         i = 0
-        while "Blogger: " not in soup.title.text :
+        while "Profil" not in soup.title.text :
             i+=1
-            notify("Changement IP")
+            notify("Current IP adress detected")
             sleeptime = 10
             print("try nb:", i)
             print(soup.title.text)
@@ -148,58 +162,11 @@ def create_followers_data2(data):
         if table is not None :
             for item in table.find_all("tr"):
                 info[item.th.text] = item.td.text
-        df = df.append({"user_url" : x, "My_blogs" : l1, "Blogs_followed" : l2, "Info" : info}, ignore_index=True)
-    df.to_pickle("Svg_data/Followers2")
+        df = df.append({"user_url" : x, "my_blogs" : l1, "blogs_followed" : l2, "personal_info" : info}, ignore_index=True)
+    df.to_pickle("backup/data/authors")
+    notify("End of create_author_data program")
     return df
 
-
-def create_followers_data2_bis(data):
-    a = [x for x in set(data["author.url"]) if x == x and "blogger.com/profile/" in x]
-    dico = dict()
-    for user in a :
-        url = data.loc[data["author.url"] == user]["blog.url"].values[0]
-        if url in dico.keys() :
-            dico[url].append(user)
-        else :
-            dico[url] = [user]
-    df = pd.DataFrame(columns = ["user_url", "My_blogs", "Blogs_followed","Info"])
-    count = 0
-    for blog in tqdm.tqdm(dico.keys()) :
-        for user in tqdm.tqdm(dico[blog]) :
-            print("user nb:", count)
-            count +=1
-            l1 = []
-            l2 = []
-            info = dict()
-            #sleeptime = random.uniform(2,4)
-            #sleep(sleeptime)
-            r = requests.get(blog)
-            r = requests.get(user)
-            soup = BeautifulSoup(r.text, 'html.parser')
-            i = 0
-            while "Profil" not in soup.title.text :
-                i+=1
-                sleeptime = random.uniform(120, 360)
-                print("try nb:", i)
-                print(soup.title.text)
-                print("sleeping for:", sleeptime, "seconds")
-                sleep(sleeptime)
-                print("sleeping is over")
-                soup = BeautifulSoup(r.text, 'html.parser')
-            content = soup.find("div", class_ ="contents-after-sidebar")
-            if content is not None :
-                for item in content.find_all("li", class_ ="sidebar-item"):
-                    if item.find("span") is None :
-                        l2.append(item.a["href"])
-                    else :
-                        l1.append(item.a["href"])
-            table = soup.table
-            if table is not None :
-                for item in table.find_all("tr"):
-                    info[item.th.text] = item.td.text
-            df = df.append({"user_url" : user, "My_blogs" : l1, "Blogs_followed" : l2, "Info" : info}, ignore_index=True)
-    df.to_pickle("Svg_data/Followers2")
-    return df
 
 import itertools
 from pyvis.network import Network

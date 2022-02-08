@@ -11,7 +11,7 @@ Created on Tue Jan  4 15:20:45 2022
 import numpy as np
 from collections import Counter
 import nltk
-import os
+
 import spacy
 
 import re
@@ -297,20 +297,16 @@ def sent_tokenize(text, space=False):
 # Lexical feature (word level)
 # Average word length of a document
 def average_word_length(words):
-    if len(words)==0:
-        return 0
-    average = sum(len(word) for word in words)/(len(words))
+    average = sum(len(word) for word in words)/max(1, len(words))
     return average
 
 # Total number of short words (length <4) in a document
 def total_short_words(words):
     count_short_word = 0
-    if len(words)==0:
-        return 0
     for word in words:
         if len(word) < 4:
             count_short_word += 1
-    return count_short_word/(len(words))
+    return count_short_word/max(1, len(words))
 
 # Lexical feature (character level)
 # Average number of digit in document
@@ -369,16 +365,17 @@ def average_sentence_length(sent_list):
 
 # Lexical Feature (vocabulary richness)
 def hapax_legomena_ratio(words):  # # per document only a float value
+
     fdist = nltk.FreqDist(word for word in words)
     fdist_hapax = nltk.FreqDist.hapaxes(fdist)
-    return float(len(fdist_hapax)/(len(words)))
+    return float(len(fdist_hapax)/max(1, len(words)))
 
 
 def dislegomena_ratio(words):  # per document only a float value
     vocabulary_size = len(set(words))
     freqs = Counter(nltk.probability.FreqDist(word for word in words).values())
     VN = lambda i:freqs[i]
-    return float(VN(2)*1./(vocabulary_size))
+    return float(VN(2)*1./max(1, vocabulary_size))
 
 def CountFunctionalWords(words):
 
@@ -388,7 +385,7 @@ def CountFunctionalWords(words):
         if i in function_word:
             count += 1
 
-    return count / len(words)
+    return count / max(1, len(words))
 
 def freq_function_word(words):  # per document (vector with length 174)
     count = {}
@@ -436,11 +433,13 @@ def RemoveSpecialCHs(text):
 
 def AvgWordFrequencyClass(words):
     # dictionary comprehension . har word kay against value 0 kardi
-    freqs = {key: 0 for key in words}
-    for word in words:
-        freqs[word] += 1
-    maximum = float(max(list(freqs.values())))
-    return np.average([math.floor(math.log((maximum + 1) / (freqs[word]) + 1, 2)) for word in words])
+    if len(words) == 0: return 0
+    else :
+        freqs = {key: 0 for key in words}
+        for word in words:
+            freqs[word] += 1
+        maximum = float(max(list(freqs.values())))
+        return np.average([math.floor(math.log((maximum + 1) / (freqs[word]) + 1, 2)) for word in words])
 
 # -------------------------------------------------------------------------
 # K  10,000 * (M - N) / N**2
@@ -452,7 +451,7 @@ def YulesCharacteristicK(words):
     vi = Counter()
     vi.update(freqs.values())
     M = sum([(value * value) * vi[value] for key, value in freqs.items()])
-    K = 10000 * (M - N) / math.pow(N, 2)
+    K = 10000 * (M - N) / max(1,math.pow(N, 2))
     return K
 
 
@@ -492,23 +491,28 @@ def SimpsonsIndex(words):
 
 def FleschReadingEase(words, NoOfsentences):
     l = float(len(words))
-    scount = 0
-    for word in words:
-        scount += syllable_count(word)
-
-    I = 206.835 - 1.015 * (l / float(NoOfsentences)) - 84.6 * (scount / float(l))
-    return I
+    if l == 0 : return 0
+    else :
+        scount = 0
+        for word in words:
+            scount += syllable_count(word)
+    
+        I = 206.835 - 1.015 * (l / float(NoOfsentences)) - 84.6 * (scount / float(l))
+        return I
 
 
 # -------------------------------------------------------------------
 def FleschCincadeGradeLevel(words, NoOfSentences):
-    scount = 0
-    for word in words:
-        scount += syllable_count(word)
-
     l = len(words)
-    F = 0.39 * (l / NoOfSentences) + 11.8 * (scount / float(l)) - 15.59
-    return F
+    if l == 0 : return 0
+    else :
+        scount = 0
+        for word in words:
+            scount += syllable_count(word)
+    
+        
+        F = 0.39 * (l / NoOfSentences) + 11.8 * (scount / float(l)) - 15.59
+        return F
 
 
 # -----------------------------------------------------------------
@@ -529,14 +533,16 @@ def dale_chall_readability_formula(words, NoOfSectences):
 
 # ------------------------------------------------------------------
 def GunningFoxIndex(words, NoOfSentences):
-    NoOFWords = float(len(words))
-    complexWords = 0
-    for word in words:
-        if (syllable_count(word) > 2):
-            complexWords += 1
-
-    G = 0.4 * ((NoOFWords / NoOfSentences) + 100 * (complexWords / NoOFWords))
-    return G
+    if len(words) == 0 : return 0
+    else :
+        NoOFWords = float(len(words))
+        complexWords = 0
+        for word in words:
+            if (syllable_count(word) > 2):
+                complexWords += 1
+    
+        G = 0.4 * ((NoOFWords / NoOfSentences) + 100 * (complexWords / NoOFWords))
+        return G
 
 
 def pos_freq(text, NoOfSentences):      
@@ -583,34 +589,24 @@ def create_feature(text, words, sent_text):
 
     return stylometry
 
-def create_stylometrics(authorship, max_sentence=300):
+def create_stylometrics(content_list, max_sentence= -1):
 
-    stylo_dict = {}
+    X = pd.DataFrame()
 
-    for (ff, id, author) in tqdm(zip(authorship['file'], authorship['id'], authorship['author']), total=len(authorship)):
-        
-        text = read(ff)
+    for text in tqdm(content_list):
 
         sent_text = sent_tokenize(text, space=True)[:max_sentence]
         
         text = ''.join(sent_text)
-        words=RemoveSpecialCHs(text)
+        if len(text) == 0:
+            X.loc[len(X)] = 0
+        else :
+            words=RemoveSpecialCHs(text)
         
-        stylo_dict[(author, id)]=create_feature(text, words, sent_text)
+            X = X.append(create_feature(text, words, sent_text), ignore_index = True)
 
-    stylo_df=pd.DataFrame(stylo_dict).transpose().rename_axis(['author', 'id']).reset_index().fillna(0)
 
-    return stylo_df
-
-def build_authorship(dir):
-    authorship=[]
-    authors = [a for a in os.listdir(dir) if os.path.isdir(os.path.join(dir,a))]
-    for author in authors:
-        books = [(author,b, os.path.join(dir, author, b)) for b in os.listdir(os.path.join(dir, author))]
-        authorship.extend(books)
-
-    authorship_df = pd.DataFrame(authorship, columns=['author', 'id', 'file'])
-    return authorship_df
+    return X
 
 
 
